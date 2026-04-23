@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>CryptoSafe – Criptografia AES</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #e0e0e0;
+      margin: 40px;
+      text-align: center;
+    }
+
+    h2 {
+      color: #00bcd4;
+      text-shadow: 0 0 8px rgba(0, 188, 212, 0.6);
+    }
+
+    .input-container {
+      position: relative;
+      display: inline-block;
+      width: 90%;
+      max-width: 600px;
+    }
+
+    textarea, input {
+      width: 90%;
+      max-width: 600px;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background-color: #1c1f24;
+      color: #e0e0e0;
+    }
+
+    textarea::placeholder, input::placeholder {
+      color: #888;
+    }
+
+    .eye-icon {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 18px;
+      color: #00bcd4;
+      transition: color 0.3s;
+    }
+
+    .eye-icon:hover {
+      color: #26c6da;
+    }
+
+    button {
+      margin: 8px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #00bcd4, #0097a7);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #26c6da, #00acc1);
+      transform: scale(1.05);
+    }
+
+    .caixa {
+      border-radius: 8px;
+      padding: 12px;
+      margin: 10px auto;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      text-align: left;
+    }
+
+    .sal { background: linear-gradient(135deg, #004d7a, #008793); color: #e0f7fa; }
+    .iv { background: linear-gradient(135deg, #00796b, #48a999); color: #e0f2f1; }
+    .texto { background: linear-gradient(135deg, #795548, #a1887f); color: #fff3e0; }
+
+    .status-bar {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 6px;
+      width: 90%;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      background-color: rgba(0, 188, 212, 0.15);
+      color: #00bcd4;
+      font-weight: bold;
+      transition: opacity 0.5s ease;
+      opacity: 0;
+    }
+
+    .status-success { color: #4caf50; background-color: rgba(76, 175, 80, 0.15); }
+    .status-error { color: #f44336; background-color: rgba(244, 67, 54, 0.15); }
+
+    /* Barra de força da senha */
+    .strength-bar {
+      width: 90%;
+      max-width: 600px;
+      height: 10px;
+      margin: 5px auto 15px auto;
+      border-radius: 5px;
+      background-color: #333;
+      overflow: hidden;
+    }
+
+    .strength-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.4s ease, background-color 0.4s ease;
+    }
+
+    /* RESPONSIVIDADE PARA CELULAR */
+    @media (max-width: 600px) {
+      body {
+        margin: 10px;
+        padding: 0;
+      }
+
+      h2 {
+        font-size: 22px;
+        margin-bottom: 15px;
+      }
+
+      textarea, input {
+        width: 100%;
+        font-size: 16px;
+      }
+
+      .input-container {
+        width: 100%;
+      }
+
+      button {
+        width: 100%;
+        margin: 6px 0;
+        font-size: 16px;
+        padding: 12px;
+      }
+
+      .caixa {
+        width: 100%;
+        font-size: 15px;
+      }
+
+      .status-bar {
+        width: 100%;
+        font-size: 14px;
+      }
+
+      .strength-bar {
+        width: 100%;
+      }
+
+      .eye-icon {
+        right: 10px;
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>🔐 CryptoSafe – Criptografia AES‑256</h2>
+
+  <textarea id="texto" placeholder="Digite o texto ou o pacote aqui" rows="4"></textarea><br>
+
+  <div class="input-container">
+    <input type="password" id="senha" placeholder="Digite a senha" oninput="avaliarForcaSenha(this.value)">
+    <span class="eye-icon" onclick="toggleSenha()">👁️</span>
+  </div>
+
+  <div class="strength-bar">
+    <div id="strengthFill" class="strength-fill"></div>
+  </div>
+
+  <button onclick="criptografar()">🔒 Criptografar</button>
+  <button onclick="descriptografar()">🔓 Descriptografar</button>
+  <button onclick="salvarTXT()">💾 Salvar em TXT</button>
+  <button onclick="carregarTXT()">📂 Carregar TXT</button>
+  <button onclick="limparTudo()">🧹 Novo</button>
+  <input type="file" id="arquivoTXT" accept=".txt" style="display:none">
+
+  <h3>Resultado:</h3>
+  <div id="resultado"></div>
+
+  <div id="status" class="status-bar"></div>
+
+  <script>
+    let ultimoPacote = "";
+
+    function mostrarStatus(mensagem, tipo = "info") {
+      const barra = document.getElementById("status");
+      barra.textContent = mensagem;
+      barra.className = "status-bar";
+      if (tipo === "success") barra.classList.add("status-success");
+      if (tipo === "error") barra.classList.add("status-error");
+      barra.style.opacity = 1;
+      setTimeout(() => barra.style.opacity = 0, 3000);
+    }
+
+    function toggleSenha() {
+      const campo = document.getElementById("senha");
+      campo.type = campo.type === "password" ? "text" : "password";
+    }
+
+    function avaliarForcaSenha(senha) {
+      let score = 0;
+      if (senha.length >= 6) score++;
+      if (senha.length >= 10) score++;
+      if (/[A-Z]/.test(senha)) score++;
+      if (/[0-9]/.test(senha)) score++;
+      if (/[^A-Za-z0-9]/.test(senha)) score++;
+
+      const barra = document.getElementById("strengthFill");
+
+      switch (score) {
+        case 0:
+        case 1:
+          barra.style.width = "20%";
+          barra.style.backgroundColor = "#f44336";
+          break;
+        case 2:
+          barra.style.width = "40%";
+          barra.style.backgroundColor = "#ff9800";
+          break;
+        case 3:
+          barra.style.width = "60%";
+          barra.style.backgroundColor = "#ffeb3b";
+          break;
+        case 4:
+          barra.style.width = "80%";
+          barra.style.backgroundColor = "#8bc34a";
+          break;
+        case 5:
+          barra.style.width = "100%";
+          barra.style.backgroundColor = "#4caf50";
+          break;
+      }
+    }
+
+    function validarSenhaAntesDeCriptografar(senha) {
+      if (senha.length < 6) {
+        mostrarStatus("A senha deve ter pelo menos 6 caracteres.", "error");
+        return false;
+      }
+      return true;
+    }
+
+    function criptografar() {
+      const texto = document.getElementById("texto").value;
+      const senha = document.getElementById("senha").value;
+      if (!texto || !senha) { mostrarStatus("Digite o texto e a senha.", "error"); return; }
+      if (!validarSenhaAntesDeCriptografar(senha)) return;
+
+      const salt = CryptoJS.lib.WordArray.random(128 / 8);
+      const iv   = CryptoJS.lib.WordArray.random(128 / 8);
+      const chave = CryptoJS.PBKDF2(senha, salt, { keySize: 256 / 32, iterations: 1000 });
+      const criptografado = CryptoJS.AES.encrypt(texto, chave, { iv: iv }).toString();
+      const pacote = salt.toString() + iv.toString() + criptografado;
+      ultimoPacote = pacote;
+
+      document.getElementById("resultado").innerHTML =
+        `<div class="caixa sal"><strong>Sal:</strong> ${salt}</div>` +
+        `<div class="caixa iv"><strong>IV:</strong> ${iv}</div>` +
+        `<div class="caixa texto"><strong>Texto criptografado:</strong><br>${pacote}</div>`;
+
+      mostrarStatus("Criptografia concluída com sucesso!", "success");
+    }
+
+    function descriptografar() {
+      const pacote = document.getElementById("texto").value.trim();
+      const senha  = document.getElementById("senha").value;
+      if (!pacote || !senha) { mostrarStatus("Digite o pacote e a senha.", "error"); return; }
+
+      const saltHex = pacote.substr(0, 32);
+      const ivHex   = pacote.substr(32, 32);
+      const criptografado = pacote.substr(64);
+
+      const salt = CryptoJS.enc.Hex.parse(saltHex);
+      const iv   = CryptoJS.enc.Hex.parse(ivHex);
+      const chave = CryptoJS.PBKDF2(senha, salt, { keySize: 256 / 32, iterations: 1000 });
+      const bytes = CryptoJS.AES.decrypt(criptografado, chave, { iv: iv });
+      const textoOriginal = bytes.toString(CryptoJS.enc.Utf8);
+
+      document.getElementById("resultado").innerHTML =
+        `<div class="caixa sal"><strong>Sal:</strong> ${saltHex}</div>` +
+        `<div class="caixa iv"><strong>IV:</strong> ${ivHex}</div>` +
+        `<div class="caixa texto"><strong>Texto descriptografado:</strong><br>${textoOriginal || "(senha incorreta ou pacote inválido)"}</div>`;
+
+      mostrarStatus(
+        textoOriginal ? "Descriptografia concluída!" : "Senha incorreta ou pacote inválido.",
+        textoOriginal ? "success" : "error"
+      );
+    }
+
+    function salvarTXT() {
+      if (!ultimoPacote) { mostrarStatus("Criptografe algo antes.", "error"); return; }
+      const blob = new Blob([ultimoPacote], { type: "text/plain" });
+      const url  = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "criptografia.txt";
+      link.click();
+      URL.revokeObjectURL(url);
+      mostrarStatus("Arquivo salvo com sucesso!", "success");
+    }
+
+    function carregarTXT() {
+      document.getElementById("arquivoTXT").click();
+    }
+
+    document.getElementById("arquivoTXT").addEventListener("change", function(event) {
+      const arquivo = event.target.files[0];
+      if (!arquivo) return;
+      const leitor = new FileReader();
+      leitor.onload = function(e) {
+        const conteudo = e.target.result.trim();
+        document.getElementById("texto").value = conteudo;
+        mostrarStatus("Arquivo carregado! Pacote colocado no campo de texto.", "success");
+      };
+      leitor.readAsText(arquivo);
+    });
+
+    function limparTudo() {
+      document.getElementById("texto").value = "";
+      document.getElementById("senha").value = "";
+      document.getElementById("resultado").innerHTML = "";
+      document.getElementById("strengthFill").style.width = "0%";
+      ultimoPacote = "";
+      mostrarStatus("Campos limpos.", "success");
+    }
+  </script>
+</body>
+</html>
