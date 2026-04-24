@@ -2,7 +2,7 @@
   "name": "CryptoSafe",
   "short_name": "CryptoSafe",
  "description": "Aplicativo CryptoSafe para criptografia AES-256 de mensagens.",
-  "start_url": "index.html",
+ "start_url": "/cryptosave/index.html",
   "display": "standalone",
   "background_color": "#0f2027",
   "theme_color": "#00bcd4",
